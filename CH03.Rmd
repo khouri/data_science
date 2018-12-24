@@ -85,5 +85,89 @@ where $P$ is the number of the predictors, the coefficients $a_{j1},a_{j2},a_{j3
 
 ![PCA](./Ch03Fig05.png)
 
+The Figure [PCA] shows two correlated predictors (correl $= 0.93$) these two predictors have redundant information, these predictors or a linear combination of them coukld be use in place of these predictors. In the picture we can see the PCA principal components both uncorrelated, the first PC summarize 97% of all the variation.
 
+PCA look for linear combinations of the predictors that maximize the variability it summarizes the predictors with more variation. You need to scale and centralize the data before apply PCA to avoid misconfusion of magnitude order. Besides that its very usefull to remove the skewness of predictors before apply PCA.
+
+PCA is unsupervised method because it doesnt consider the modeling objective or response variable when summarizing the variability. A supervised approach named PLS considers the target variable.
+
+After the pre-processing stage we can finally apply PCA and decide how many principal components to retain, for that we can use the scree plot as bellow:
+
+![PCA](./Ch03Fig06.png)
+
+The first principal components keep the main variance of the model, analisy the pcs is a important step . To do this, the pcs can ploted against each other and the ploted symbols can be target variables. Some care should be taken while plot this kind of chart whit the scale of values of each component, the last components keep the less amount of variance.
+
+The next figure shows PC against other PC, the colored symbols are the classes.
+
+![PC against PC](./Ch03Fig07.png)
+
+The percentages of variance are not large for the three first components then we cant over interpret the chart. The plot shows some separation between classes using the PC1 and PC2 but its not true. These chart show the data is not easily separated.
+
+Another use of PCA is to identify which predictors are associated with each PC, each component is a linear combination of the predictors the coefficients are called *loading*. Loadings close to zero means there are small contribution to the predictor for the PC, the following figure shows the loadings for the first three PC.
+
+![PCA](./Ch03Fig08.png)
+
+That figure shows to us the first channel have great impact on the firt component because the loadings are on the extreme of the PC1, the majority of loadings for the third channel are closed to zero it means the third channel doesnt contribute with the first component. For the PC3 the channel 3 contributes a lot because the loadings are on the extremes.
+
+## Dealing with missing values
+Some datasets has missing values there are two main types of missing values: i) structurally missing (number of children a man has given birth to); ii) The value was not determined. The most important is to understand why the values are missing, is the pattern of missing data is related with the output? (informative missingness) this type of missing can introduce significant bias at the model. Like a patient using a new drug with side effects, maybe he will not return at the doctors/scientist to keep the study.
+
+There are censored data tipically found in the lab experiments when the censor cant measure something. The value is lower than the ,limit but we cant measure it preciselly. For inference or interpretation is commom to use a random value, interpolation or mean observed value to fill this data. According to author experience missing values are more concentrated at predictors instead of sample in some cases is possible to remove the predictor with high ocurrence of missing values.
+
+For large datasets removing missing samples are not problem if the missingness is not informative. For smaller datasets removing missing values could be problematic because we can lost some patterns or the model cant learn, there are other possible approachs.
+
+Tree based models can handle missing values or we can impute the missing data ussing another predictor. We build a model with trainning set to fill values of predictors using another predictors. If the number of predictors affected by missing is small a EDA could be done to discover the relationship between the predictors.
+
+Its possible to use PCA to determine if are a strong relationship between the predictors, if a variable has missing values and has strong correlation with another predictor that has few missing values, a focused model can often be effective for imputation (like the example bellow)
+
+KNN could be use as imputation technique a new sample is showed to model to find the closest samples of it and averages the nearby to fill the missing values. The advantages: i) the value will be inside the training data values. Disadvantages: i) entire trainning set are need for each new value; ii) Also, the number of neighboors is a tunning parameter as the method to determine *closeness* of two points.
+
+The bellow figure show two approachs to fill missing data: i) 5NN; ii) linear regression
+
+![PCA](./Ch03Fig09.png)
+
+## Removing predictors
+The two main advantages to remove some predictors are: i) less computacional time to process; ii) predictors with high correlation are measuring the same information, removing one will not compromisse the performance and simplifies the model; iii) some models can be affected by degenerated distributions of predictors, remove then can improve then model performance.
+
+Tree models are impervious about this poroblems because they will never use this predictor as a split point on the other hand linear regression can be affected. In both cases the predictor will not add ionfoprmation to the model then its better to remove the variables. Near Zero Variance is one famous approach to that, it means variables with small number of values.
+
+How to find this kind of problem? Simple the number of unique points are small relative to the number of samples. Some scientific languages like R and python has packages of near zero variance.
+
+
+## Between-Predictor Correlations
+Collinearity is when two predictors have a substancial correlation with each other, multiple predictors can suffer from this to (its called multicollinearity). A heat map with correlation can help to visualize the problem, the variables could be grouped using a cluster algorithm to make it easier to see the high correlation areas.
+
+Greater datasets can use PCA to help to measure the magnitude of the problem, if the first PC accounts for a large percentage of variance this implies at least one group of predictors with represent the same information. PCA loadings can be use to find where are this relationships and which variables are inside it.
+
+There are good reasons to avoid data with high correlated predictors, they add more complexity to the model than information they provide, for linear regression usign correlated features can cause unstable  models, numerical errors and degraded predictive performance.
+
+The following picture show a heat map of correlation matrix:
+
+![PCA](./Ch03Fig10.png)
+
+Classical regression techniques uses Variance Inflation Factor (VIF) to identify multicollinearity but it only works for linear models, but it can determine which variables to remove. A more practical approach is remove the minimum number of predictors to ensure all pairwise relations are bellow a certain threshold, the algorithm is:
+
+1 . Calculate the correl matrix
+2 . Determine the two predictors with largest absolute pairwise correl (A and B predictors)
+3 . Determine the averga correl between A and other variables, do the same for B
+4 . If A has a greater correl remove it, otherwise remove B
+5 . Repeat steps 2-4 until no absolute correl is greater than threshold
+
+These methods of feature extraction cant guarantee they will find any relation between the predictors and the outcome.
+
+
+## Adding Predictors
+Numerical/Categorical values can be encoded as dummy variables include dummy in models with intercept could reduce the performance. On the other hand to a tree based model this kind of variable could be a great idea to improve the performance.
+
+The following figure show a classic logistic regression and a logistic regression which has added a squared B predictor
+
+![Regressão Logística](./Ch03Fig11.png)
+
+There are cases in the literature Fiorina et al (2009) recommend adds complex combination of data to the model, for classification they evaluate  *class centroids* the center of the predictor data for each class. Then for each predictor the distance to each class centroid can be calculated and this distances can be added for the model.
+
+
+## Binning Predictors
+The author of the book dont recommend to manual binning the predictors, the advantage of binning is: i) increase the interpretability of the model and the disadvantage are: i) decrease the performance of the model. Some statiscal models can help  the modeler to do that job using statistcal information.
+
+## Computing
 
