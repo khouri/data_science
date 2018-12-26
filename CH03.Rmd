@@ -169,5 +169,163 @@ There are cases in the literature Fiorina et al (2009) recommend adds complex co
 ## Binning Predictors
 The author of the book dont recommend to manual binning the predictors, the advantage of binning is: i) increase the interpretability of the model and the disadvantage are: i) decrease the performance of the model. Some statiscal models can help  the modeler to do that job using statistcal information.
 
-## Computing
+# Computing
+
+Following the code to pre-process the data and remove some features:
+
+```{r computing }
+
+library(AppliedPredictiveModeling)
+data(segmentationOriginal)
+
+segData  <-  subset(segmentationOriginal, Case == "Train")
+
+cellId <- segData$Cell
+class <- segData$Class
+case <- segData$Case
+
+#removing columns
+segData  <- segData[, -(1:3)]
+
+#remove status columns
+StatusColNum <- grep("Status", names(segData))
+segData <- segData[,-StatusColNum]
+
+print(segData)
+
+```
+
+## Transformations
+
+Following the code to identify skewness:
+
+```{r skewnessPreditors}
+
+library("e1071")
+
+# For one predictor
+AngleCh1Skewness <-  skewness(segData$AngleCh1)
+print(AngleCh1Skewness)
+
+#using apply over all columns
+skewnessAll <- apply(segData, 2, skewness)
+head(skewnessAll)
+
+# Using lattice to plot the shape and  boxcox to see what kind of transformation could be apply
+library("caret")
+Ch1AreaTrans <- BoxCoxTrans(segData$AreaCh1)
+print(Ch1AreaTrans)
+
+print("The original data")
+head(segData$AreaCh1)
+
+print("After transformation")
+preditedTransformation <- predict(Ch1AreaTrans, head(segData$AreaCh1))
+print(preditedTransformation)
+
+# Now apply PCA over the dataset
+pcaObject <- prcomp(segData, 
+                    center = TRUE, 
+                    scale = TRUE)
+
+# Cumulative variance for each component
+percentVariance <- pcaObject$sd^2 / sum(pcaObject$sd^2) * 100
+print(percentVariance[1:3])
+
+# Transformed values
+print(head(pcaObject$x[,1:5]))
+
+# PCA loadings
+print(head(pcaObject$rotation[,1:3]))
+
+# caret package has spatial sign: spatialSign(data) to transform data in sphere
+# to input missing values you can use: inpute package like impute.knn or bagged tree
+# caret package has preProcess function to: transform, center, scale, boxcox, pca variables, and others
+# the predict function applies the results to a dataset
+
+trans <- preProcess(segData, 
+                    method = c("BoxCox","center","scale","pca"))
+
+print(trans)
+
+#apply the transformations
+transformed <- predict(trans, segData)
+print(head(transformed[,1:5]))
+
+
+```
+
+## Filtering
+
+To filter near zero var its possible to use caret package function: *nearZeroVar*
+```{r nearZeroVar}
+  
+  library(caret)
+
+  #it returns a vector of integers, each integer is a position to be removed from the dataset
+  columnsToRemove <- nearZeroVar(segData)
+  print(columnsToRemove)
+
+  #To filter the hogh correlated predictors we can use *cor* function
+  correlation <- cor(segData)
+  print(dim(correlation))
+  correlation[1:4, 1:4]
+  
+  # Show high correlated using an heat map
+  library(corrplot)
+  corrplot(correlation, order = "hclust")
+  
+  #To apply a filter based on correl we can use the function: *findCorrelation*
+  highCorrel <- findCorrelation(correlation, cutoff = 0.75)
+  
+  length(highCorrel)
+  head(highCorrel)
+  
+  filteredSegData <- segData[,-highCorrel]
+  
+```
+
+## Creating dummy variables
+There are much approachs to create dummy variables, one is using formula notation of R. Splits of tree based methods can be increased using only dummy variables, to illustrate we will use a subset of *cars* dataset
+
+```{r carsDataset}
+
+data(cars)
+type <- c("convertible", "coupe", "hatchback", "sedan", "wagon")
+cars$Type <- factor(apply(cars[, 14:18], 1, function(x) type[which(x == 1)]))
+carSubset <- cars[sample(1:nrow(cars), 20), c(1, 2, 19)]
+
+head(carSubset)
+levels(carSubset$Type)
+
+# To model price as a function of mileage and type we can use 
+#dummyVars to find the encodings for the predictors
+simpleModel <- dummyVars(~Mileage + Type,
+                          data = carSubset,
+                          ##Remove the variable name from the column name
+                          levelsOnly=TRUE)
+
+print(simpleModel)
+
+# Combining the dummyVars object and predict we can create the dummy variables
+predict(simpleModel, head(carSubset))
+
+```
+
+The field type was expanded intpo five categories dummy, the model is simple because we assume the effect of mileage is the same for every type. A more complex model could consider a *joint* effect called interaction
+
+```{r interaction}
+
+withInteraction <- dummyVars(~Mileage + Type + Mileage:Type,
+                              data = carSubset,
+                              ##Remove the variable name from the column name
+                              levelsOnly=TRUE)
+
+predict(withInteraction, head(carSubset))
+```
+
+The interaction creates more five variables.
+
+
+## Exercices
 
