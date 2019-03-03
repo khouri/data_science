@@ -1,0 +1,112 @@
+---
+title: "Data Pre-processing"
+output: html_notebook
+---
+
+# CH04 - Over Fitting and model tunning
+Modelos atuais conseguem representar quaisquer padrões nos dados, infelizmente eles podem over fitar (representar padrões que não são reproduziveis no decorrer do tempo), para avaliar modelos precisamos de uma metodologia sitemática. Nesse capítulo serão descritas técnicas para garantir um mesmo resultado para modelos no decorrer do tempo e evitar overfit. Nesse capítulo assume-se que os dados são representativos da população e que há uma qualidade mínima na proveniência de dados das amostras.
+
+Com essas condições, nosso objetivo é tunar o modelo sem overfita-lo. Para tal dividimos o conjunto de dados em treino/teste, abordagens mais modernas dividem em vários conjuntos de treino/teste para atingir um resultado melhor do modelo.
+
+###The problem of over-fitting
+Técnicas que aprendem muito bem a estrutura dos dados tão bem que ao ser aplicado nos dados onde o modelo foi construído prediz corretamente $100%$ da amostra. Além de aprender os padrões gerais de comportamento dos dados o modelo aprendeu o ruído de cada dado, isso significa que o modelo *overfitou* 
+
+![Conjunto de treino com dois preditores](./Ch04Fig01.png)
+
+A figura acima, será usada para ilustrar o conceito de over-fitting, contém $208$ exemplos e é um problema de classificação binária, com duas variáveis preditoras. Há um leve desbalanceamento nas classes $111$ classe 1 e $97$ classe 2 além disso existe uma sobreposição de classes, um problema tipicamente encontrado. Um modelo que use esses dados tem tipicamente um objetivo: *predizer novos dados*, o modelo pode ser representado como um fronteira(s) de decisão(ões).
+
+![Fronteiras de decisão](./Ch04Fig02.png)
+
+A figura acima mostra dois possíveis modelos para solucionar esse problema, o primeiro separa cada conjunto de dados da classe 1 e alega que o restante seria da classe 2. Podemos perceber que esse padrão não é muito generalizável. O modelo da direita, apresenta uma fronteira de decisão menos rígida que não classifica corretamente todos os pontos, mas tem maior probabilidade de generalizar.
+
+Nesse exmplo simplista, com apenas duas variáveis, é simples observar o over-fitting do modelo da esquerda. No mundo real modelos tem muitas outras variáveis tornando essa abordagem visual impraticável. Necessitamos de uma ferramenta para averiguar o grau de over-fitting.
+
+###Model tunning
+Muitos modelos tem parâmetros impossíveis de serem estimados usando os dados, como o KNN, devemos informar o número de vizinhos. Ao escolher muitos vizinhos podemos não conseguir aprender o suficiente dos dados, ao escolher poucos podemos facilmente over-fittar. Esse tipo de parâmetro é conhecido por: *parâmetro de tunning* muitos modelos apresentam pelo menos um desses parâmetros.
+![Fronteiras de decisão](./Ch04Fig03.png)
+
+A escolha desses parâmetros aumentam ou reduzem o grau de especialização do modelo, podendo, causar over-fitting. POr exemplo o parâmetro custo do SVM *C* que informa o peso do erro de classificação do modelo, ao setar um valor grande para esse parâmetro, temos um modelo altamente over-fittado enquanto que um valor baixo indica um modelo com resultados baixos. No painel da direita da figura fronteiras de decisão foi escolhido um valor alto, no painel da esquerda foi escolhido um valor usando validação cruzada.
+
+Uma abordagem para escolha de parâmetros é selecionar um subconjunto deles, treinar diversos modelos e observar o melhor entre eles.
+Esse processo pode ser visualizado na figura abaixo:
+![Fronteiras de decisão](./Ch04Fig04.png)
+
+
+Após selecionar um conjuntto de parâmetros aceitáveis para treinarmos o modelo devemos encontrar uma métrica (confiável) para avaliarmos sua performance. Nesse ponto aplicamos uma estratégia de força bruta nos dados e nos parâmetros para encontrarmos o melhor modelo e parâmetro. Outras abordagens para encontrar os parâmetros ótimo são usar algoritmos genéticos ou métodos de de busca baseados em simplex.
+
+O maior problema é encontrar uma estimativa confiável para esses modelos e definir qual o melhor dentre eles, como vimos anteiormente taxa de erro pode nos levar a uma falsa sensação de segurança. Uma abordagem usada é testar o modelo para uma amostra não usada para treinar o mesmo, seu tamanho deve ser considerável.
+
+Uma outra abordagem é usar um conjunto apenas de teste reamostrando o conjunto de treinamento, para realizar isso existem algumas técnicas estatísticas que serão abordadas adiante.
+
+
+###Divisão de dados
+O coração do processo para encontrar os parâmetros ótimo é a divisão do conjunto de dados, a construção do modelo segue os seguintes passos:
+
+1. Pré-processamento dos preditores
+2. Estimação dos parâmetros
+3. Seleção de preditores
+4. Avaliação da performance
+5. Ajuste fino das regras de classificação (tipicamente usando curvas ROC)
+
+Dado que há um conjunto fixo de pontos de amostra, o modelador deve decidir como distribui-los nessas etapas. A principal escolha são os pontos que serão usados para avaliar o modelo, idealmente não devem ser os mesmos usados para treinar/ajustar finamente o modelo, dessa forma, eles representam valores não viesados. Quando há um conjunto de dados grande e expressivo podemos separar os conjuntos em validação e teste sem problemas, usando um para *treinar* e outro para *validar*.
+
+Quando não há um conjunto de dados grande o suficiente não fazemos um conjunto de validação pois cada instância deve ser usada para treinar o modelo. Além disso o conjunto de teste que seria usado pode não ter poder preditivo suficiente para tomar deciões precisas. Muitos pesquisadores reportaram que usar apenas um conjunto de dados é uma decisão pobre em termos de performance. Usar a validação cruzada é uma alternativa melhor e viável.
+
+Se um conjunto de teste é estritamente necessário podemos tomar algumas ações:
+
+1. Podemos treinar o modelo com um conjunto e testar em outro
+2. No mundo de SPAM de e-mails os mais novos são mais importantes que os mais antigos.
+
+Na maioria dos casos não há desejo em transformar os conjuntos de treino e teste em homogeneos, Amostragens aleatórias podem ser usadas para criar datasets equivalentes.
+
+A forma mais simples para criar conjuntos de treino/teste é tomar amostras aleatórias, não considera informação sobre desbalanceamento entre classes, quando ocorre desbalancemento a distribuição entre classes do output do modelo pode variar muito entre o treino/teste.
+
+Uma alternativa é usar uma amostragem estratificada ao separar os dados, que é uma amostra aleatória aplicada em subgrupos (acredito que aqui seja o upsampling e downsampling)
+
+Os dados  também podem ser divididos entre os valores das variáveis preditoras, uma proposta aceita na literatura é maximizar a dissimilaridade amostral. Há muitas formas para calcular a dissimilaridade amostral a mais comum é usar a distância entre dois pontos de um mesmo preditor, se a distância é pequena os pontos estão próximos, caso contrário estão longe (indicador de dissimilaridade). Para usar esse conceito como ferramenta suponha que o conjunto de teste foi inicializado com apenas uma instância. A dissimilaridade entre esse ponto e os pontos não alocados pode ser calculada. O ponto não alocado com maior dissimilaridade deve ser adicionado ao conjunto de teste. Para adicionar mais pontos será necessário um método para calcular a dissimilaridade entre um ponto e um conjunto, uma abordagem é usar o valor médio de dissimilaridade.
+
+Calcula-se a dissimilaridade média dos pontos adicionados ao conjunto de dados, depois escolhemos o ponto (no conjunto não alocado) com maior dissmilaridade em relação a média de dissimilaridade do conjunto adicionado e adicionamos ele ao conjunto alocado esse processo continua até atingirmos o tamanho do conjunto de teste desejado.
+
+A Figura abaixo mostra esse processo aplicado em um problema de classificação de dados, nesse tipo de problema a técnica de maximização é aplicada dentro de cada classe separadamente, nesse exemplo não foi usada a média entre grupos mas sim o mínimo.
+
+![Maximização de dissimilaridade para classificação](./Ch04Fig05.png)
+
+##Técnicas de reamostragem
+De uma maneira geral técnicas de reamostragem usadas para avaliar a performance do modelo trabalham de forma parecida. Uma parte dos dados é usada para fitar o modelo e a outra é usada para testar a eficácia dos dados, esse processo é repetido diversas vezes os resultados são sumarizados e agregados. A diferença das tecnicas de reamostragem residem na forma como as subamostras são selecionados.
+
+
+###k-Fold Cross-validation
+As instâncias são divididas em *k* partições com tamanhos aproximados, um modelo é fitado usando 9 partições e testado com a última. Esse processo é repetido 10 vezes trocando a partição de teste por uma que nunca foi usada para teste, na figura abaixo notamos um 3-fold cross-validation:
+![Bootstrap](./Ch04Fig06.png)
+Uma variação dessa estratégia é fazer uma amostragem estratíficada por classes em cada um dos folds. Outra variação, leave one out cross-validation (LOOCV), é um caso especial onde k é igual ao número de instâncias, removemos uma e treinamos com as outras. O modelo final é calculado pela sumarização das k instâncias deixadas de fora uma a uma.
+
+Não há definição formal sobre qual o melhor valor de *k* tipicamente são usados os valores ${5, 10}$ quanto maior o valor de *k* menor o bias da técnica. Com o aumento de *k* a diferença entre conjuntos de treino e teste reduz.
+
+Um ponto importante sobre técnicas de reamostragem é incerteza (variação/ruído), um método sem viés pode predizer o valor correto mas paga um preço alto para isso, *incerteza*. O que significa que repetir o processo de re amostragem pode produzir resultados distintos. Validação cruzada possuí alta variação comparada a outras técnicas, porém para grandes conjuntos de treino essa variância pode ser desprezada.
+
+Valores grandes de k são computacionalmente onerosos, LOOCV é o mais computacionalmente intenso dentre todas as técnicas pois necessita de um modelo distinto para cada ponto e cada subconjunto tem o tamanho da amostra menos um. Tem pesquisas que mostram que o leave one out é tão efetivo quanto uma validação cruzada para $k=10$. Valores pequenos de *k* tem um bias alto mas são menos computacionalmente onerosos, esse bias é quase o mesmo obtido por um bootstrap porém com uma variância muito maior.
+
+
+###Generalizae Cross-validation
+Para modelos lineares de regressão para aproximar o erro do leave-one-out. O generalized Cross-validation (GCV) estatística não exige refitar o modelo para cada subamostra
+$$
+GCV = \frac{1}{n} \sum_{i=1}^{n}  \frac{y_i - \hat{y_i}}{1 - \frac{df}{n}} 
+$$
+onde $y_i$ é o i-ésimo rótulo, $\hat{y_i}$ é a i-ésima predição do modelo e $df$ são os graus de liberdade do modelo (parâmetros estimados pelo mesmo) que é uma medida de complexidade para modelos lineares. Dois modelos com a mesma soma de erro quadrado terão diferentes GCV se a complexidade dos modelos forem distintas. Vale ressaltar que é uma fórmula fechada.
+
+###Repeated Training/Test Splits
+É conhecido por leave-group-out cross-validation, monte carlo cross-validation, cria muitas divisões dos dados de treino e teste, a proporção de dados para cada subamostra e o número de repetições são controlados pelo analista. Como falamos anteriormente, o bias reduz conforme a quantidade de dados na amostra se aproxima do conjunto de modelagem valores tipicamente usados são: 75% - 80% . A figura abaixo exemplifica esse esquema:
+![Repeated Training/Test Splits](./Ch04Fig07.png)
+
+Pode-se observar que a diferença fundamental entre essa estratégia e a validação cruzada é que pode haver repetição de instâncias podem ser representadas em vários grupos deixados para predizer. Além disso o número de repetições aqui tende a ser muito maior que uma validação cruzada.
+
+O número e repetições é importante pois ao aumentarmos ele decrementamos a incerteza do modelo. Para resultados com alta instabilidade 20 repetições seriam suficientes, para obter um score mais estável podemos colocar 50-200 repetições. Esse valor é uma proporção dos exemplos sendo alocados no conjunto de predição, quanto maior a porcentagem  mais repetições serão necessárias para reduzir a incerteza do modelo
+
+
+###Bootstrap
+É uma amostragem com reposição, ou seja, após um ponto ser selecionado para o fold/set ele ainda fica disponível para ser reselecionado novamente. Uma amostra de bootstrap tem o mesmo tamanho do dataset original, como resultado direto alguns pontos serão selecionados mais de uma vez e outros não serão selecionados. Os pontos não selecionados são conhecidos por *out-of-bag*, uma iteração de bootstrap usa os exemplos selecionados para treinar o modelo e os *out-of-bag* para testar. Na figura abaixo podemos ver um exemplo disso:
+
+![Bootstrap](./Ch04Fig08.png)
+
+De uma forma geral as taxas de erro de bootstrap tem menos incerteza que um k-fold, entretanto $63.25\%$ dos pontos são representados pelo menos uma vez, portanto essa técnica tem um bias similar ao k-fold para $k=2$. Se o conjunto de treino for pequeno esse bias é grande caso contrário pode ser desprezado.
+
