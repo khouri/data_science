@@ -110,3 +110,80 @@ O número e repetições é importante pois ao aumentarmos ele decrementamos a i
 
 De uma forma geral as taxas de erro de bootstrap tem menos incerteza que um k-fold, entretanto $63.25\%$ dos pontos são representados pelo menos uma vez, portanto essa técnica tem um bias similar ao k-fold para $k=2$. Se o conjunto de treino for pequeno esse bias é grande caso contrário pode ser desprezado.
 
+Alguns métodos foram propostos para reduzir esse bias, um deles é conhecido por **632 method** que é uma combinação de um booststrap simples com uma repredição do conjunto de treino. Por exemplo um modelo de classificação usando esse método seria:
+$$
+(0.632 \times \textrm{bootstrap estimate}) + (0.368 \times \textrm{apparent error rate})
+$$
+Esse novo bootstrap reduz o bias mas pode ser instável para amostras pequenas. Essa estimação pode resultar em resultados indevidamente otimistas quando o modelo overfita gravemente. Uma técnica nova foi realizada para ajustar a estimativa de erro do bootstrap denominada **632+method**
+
+
+###Estudo de caso: Scoragem de crédito
+Pode-se aplicar modelos estatísticos para escoragem de crédito. Dados existentes podem ser usados para criar um modelo que prediga se um aplicante à crédito tem bom crédito ou não. Essa informação pode ser usada para definir o risco do banco que está emprestando dinheiro.
+
+German credit data é um dataset muito usado para atividades de ML, contém $1000$ instâncias, rótulos de bom e mal pagador. O dataset é desbalancedo pois $70\%$ são bons pagadores. Se chutassemos todos os exemplos como sendo: **bom pagador** teríamos uma acurácia de $70\%$, portanto o baseline usado de acurácia deve ser no mínimo $70\%$. (Eu discordo dos autores, essa abordagem é viável mas seria mais simples usar um F1 por exemplo)
+
+Alguns preditores são numéricos mas a maioria é categorica, as categoricas foram binarizadas, $800$ instâncias serão usadas para treino e $200$ para teste. O objetivo desse capítulo é ilustrar como tunar um modelo usando reamostragem.
+
+
+###Encontrando os parâmetros finais
+Como escolher o melhor modelo? Uma idéia é pegar o que tiver o melhor score e usar. Um modelo não linear SVM foi fitado para valores de custo entre $2^{-2}$ até $2^{7}$. Cada modelo foi testado com cinco repetições de 10-fold cross-validation as figuras abaixo mostram os valores de acurácia para 
+
+![acurácia x valor do custo](./Ch04Fig09.png)
+
+
+![acurácia x valor do custo](./tabelinha.jpeg)
+
+Para cada modelo foram gerados 50 estimativas da acuráciaos pontos vermelhos do gráficos são as médias dessas estimativas as barras são 2 $\pm$ desvios padrão da média do erro. O profile de treinamento mostra um incremento na acurácia até o valor de custo 8 depois disso temos um decréscimo contínuo indicando um overfitting. Perceba que pela acurácia aparente o modelo melhora a medidad que o custo aumenta até 8, depois ocorre um overfitting.
+
+Escolher o ponto de ótimo para o modelo pode não ser um boa idéia dado que são preferíveis modelos mais simples do que os complexos. Uma abordagem diferente é **one-standard error** que encontra o valor de ótimo e ao mesmo tempo seu erro padrão, em seguida procura o modelo mais simples com distância de um erro padrão do melhor valor numérico. Na figura abaixo podemos ver que o valor de acurácia para custo 8 é $0.7\%$
+essa técnica encontrará o melhor modelo com acurácia não menos que $74.3%$ ($75\% - 0.7\%$) escolhendo o valor de custo $2$.
+
+Outra abordagem é escolher um modelo mais simples dentro de uma certa tolerância do valor numérico ótimo. O percentual de descréscimo da performance pode ser calculado por $(X-O)/O$ onde $X$ é a performance e $O$ é o valor numérico ótimo. Por exemplo, na figura com o custo do SVM a melhor acurácia de acordo com o profile foi $75\%$ se uma perda de 4 na acurácia for aceitável, como trade off para um modelo mais simples, valores de acurácia maiores que $71.2\%$ poderiam ser aceitos, um valor de custo $1$ poderia ser aceito nesse modelo.
+
+Na figura abaixo foram testados diversos métodos de reamostragem entre eles: 10-fold cross-validation, LOOCV, repeated cross-validation, bootstrap (com e sem ajuste $632$) e repeated training/test split ($20\%$ de held-out). Os últimos dois usando reamostragem de 50 para estimar a performance.
+
+![Bootstrap](./Ch04Fig10.png)
+
+Todas as validações cruzadas apresentam um padrão de ponto ótimo entre $4$ e $16$ seguidos de uma queda de desempenho, muito provável overfitting. Com excessão do bootstrap $632$ todas as técnicas tem um pico, que é atingido rapidamente, seguido pela queda do overfitting. As técnicas de cross-validation tem acurácia entre $74.5\%$ $76.6\%$. O bootstrap simples tem o pior desempenho $74.2\%$ e o bootstrap $632$ super compensa o bias e estima com $82.3\%$ de acurácia.
+
+A largura do erro padrão do 10-fold cross-validation é a maior de todas pois o erro padrão é uma função do número de reamostragens usadas (10 versus as 50 usadas pelo bootstrap). A velocidade de computação o método mais rápido é: 10-fold cross validation, em seguida temos, quase empatados, repeated cross validation, bootstrap e repeated training/test e LOOCV é o mais demorado.
+
+
+###Data Split recomendações
+Pontos negativos em usar um conjunto de teste único e independente:
+
+1 - É uma validação única e não avalia incertezas nos resultados
+2 - Proporcionalmente conjuntos de dados grandes aumentam o bias da estimativa de performance
+3 - Com conjuntos de dados pequenos:
+    3a - O modelo necessitará de todos os pontos para estimar corretamente
+    3b - A incerteza do conjunto de teste pode ser conisderavelmente maior dado que conjuntos de teste distintos produzem resultados diferentes
+4 - metodos de reamostragem produzem resultados aceitáveis de como o modelo vai performar no futuro
+
+Não existe um método melhor que outro, há diversas situações onde devem ser avaliados os trade-offs. Para conjuntos de dados pequenos é melhor um 10-fold cross-validation pois o bias e variância serão ok e o custo computacional, dado o tamanho da amostra, não será elevado. Se o objetivo é escolher entre modelos em oposição a escolher o melhor indicador de performance, seria recomendável escolher uma técnica de bootstrap pois sua variância é baixa. Para conjuntos de dados grandes a diferença entre métodos se torna irrelevante e escolhemos entre poder computacional tipo um 10-fold cross-validation (discordo do autor, devemos usar um método para obter o melhor modelo mesmo que demore a execução).
+
+
+###Escolhendo entre modelos
+Depois de escolher os parâmetros ótimos para cada modelo, devemos escolher qual o melhor modelo entre todos. Essa tarefa é bem complexa, para tal, devemos seguir o seguinte procedimento:
+
+1 - Começar com modelos complexos como SVM, Boosted tree que produzem resultados ótimos
+2 - Usar modelos mais simples e quase interpretáveis MARS, partial least squares, generalized aditive models, naive bayes
+3 - Considere usar o modelo mais simples possível dentro da performance esperada (é um trade-off).
+
+Dessa forma, podemos achar o teto de performance e depois ponderar até onde podemos perder de precisão para ganhar em interpretabilidade. No geral a maioria dos modelos tem resultados próximos então podemos escolher de acordo com os benefícios das diferentes metodologias. Complexidade, interpretabilidade, facilidade em predizer. Um SVM e random forest tem acurácia excelente porém suas complexidades computacionais podem impedir de colocarmos eles em produção, se um MARS tiver desempenho levemente inferior podemos usar ele pois tem um tempo de execução muito inferior.
+
+Considerando o exemplode scoragem de crédito onde usamos um SVM com repeated 10-fold cross-validation a acurácia estimada do modelo era de $75\%$ com a maioria dos resultados de reamostragem entre $66\%$ e $82\%$. Usando uma logistica com o mesmo schema de cross-validation obtivemos $74.9\%$ com a maioria dos resultados de reamostragem entre $66\%$ e $82\%$. As mesmas $50$ reamostragens foram usadas para avaliar cada modelo, a figura abaixo mostra a distribuição de ambos
+
+![Bootstrap](./Ch04Fig11.png)
+
+Dado que a acurácia foi metrificada usando o mesmo conjunto de dados reamostrado da mesma forma, estatísticas para comparasão em pares podem ser usadas para determinar se as diferenças entre modelos é estatisticamente significante. Um t-test pareado pode ser usado para comparar se a acurácia (média) dos modelos, ou a diferença média na acurácia dos data sets reamostrados é zero. Para ambos os modelos a diferença média na acurácia dos modelos foi de $0.1\%$ com a logistica tendo resultados melhores. O intervalo de confiança de $95\%$ foi de ($-1.2\%$, $1\%$) indicando que a acurácia de nenhum dos modelos é significantemente melhor. 
+
+Quando são usadas várias metodologias para comparar modelos podemos chegar em situações conflitantes, dependendo do problema a ser tratado devemos considerar o peso de uma estatística maior que de outro. Especificidade e sensitividade podem ser usados para comparar  modelos. Se o conjunto de dados tem mais *eventos* que *não eventos* sensitividade pode ser usado melhor que especificidade. Com aumento de precisão há uma verissimilhança maior que modelos podem ser diferenciados em termos de sensitividade do que especificidade.
+
+###Computação :)
+
+
+
+
+
+
+
