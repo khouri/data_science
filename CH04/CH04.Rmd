@@ -181,9 +181,224 @@ Quando são usadas várias metodologias para comparar modelos podemos chegar em 
 
 ###Computação :)
 
+```{r} 
+  
+  #message = FALSE, warning = FALSE
+  library(AppliedPredictiveModeling)
+  library(caret)
+
+  data(twoClassData)
+  
+  #samples to be predicted
+  str(predictors)
+  
+  #outcome classes are in a vector
+  str(classes)
+  
+  #sample method creates random samples
+  
+  #createPartition creates stratified samples of data
+  
+  
+  #Set the seed
+  set.seed(1)
+  
+  #return a matrix of numbers
+  list = FALSE  
+  
+  trainingRows <- createDataPartition(classes, 
+                                      p = 0.8,
+                                      list = list)
+  
+  head(trainingRows)
+  
+  #subseting objects into training set
+  trainPredictors <- predictors[trainingRows, ] 
+  trainClasses <- classes[trainingRows]
+  
+  testPredictors <- predictors[-trainingRows, ] 
+  testClasses <- classes[-trainingRows]
+  
+  str(trainPredictors)
+  
+  str(testPredictors)
+  
+  
+  #to generate a test set with maximum dissimilarity: maxdissim
+  
+  #Ressampling: repeated training/teste
+  repeatedSplits <- createDataPartition(trainClasses, 
+                                        p = 0.80,
+                                        #generate multiple splits
+                                        time = 3)
+  
+  str(repeatedSplits)
+  
+  # bootstraping: createRessamples
+  # k-fold crossvalidation: createFolds
+  # repeated cross validation: createMultiFolds
+  # 
+  
+  set.seed(2019)
+  cvSplits <- createFolds(trainClasses, 
+                          k=10, 
+                          returnTrain = TRUE)
+  
+  str(cvSplits)
+  
+  #get the first set of row numbers from the list
+  fold <- cvSplits[[1]]
+  
+  print(fold)
+  
+  #To get 90% of the data(the first fold)
+  cvPredictors1 <- trainPredictors[fold,]
+  csClasses1 <- trainClasses[fold]
+  
+  nrow(trainPredictors)
+  nrow(cvPredictors1)
+  
+```
 
 
+#Basic model building in R
+Agora temos o conjunto de treino e teste podemos fitar um modelo de knn com 5 vizinhos. Há vários pacotes em R para essa tarfea, MASS, ipred e caret, usaremos o knn3 do pacote caret que produz a probabilidade de classes e a proporção de vizinhos associado a cada classe. Em R podemos usar duas formas para descrever modelos, a notação *fórmula* e a *matricial*. Na notação fórmula o lado esquerdo é a saída do modelo e o lado direito é como os preditores se relacionam para criar a saída, exemplo: modelFunction(price ~ numBedrooms + numBaths + acres, data = housingData) nesse caso como 3 features quantitativas se relacionam para resolver o problema.
 
+A fórmula y~. indica uso de todos as colunas da matriz (com excessão de y) para predizer o output, essa notação é prática permitindo calcular funções dentro da fórmula, como tirar o logaritmo, mas consome muita memória. A interface matricial exige a matriz de dados dentro da função de modelagem, exemplo: modelFunction(x = housingData, y = price). Nem todas as funções em R possuem ambas as interfaces.
+
+Podemos treinar o knn3 da seguinte forma:
+
+```{r}
+  trainPredictor <- as.matrix(trainPredictors)
+  knnFit <- knn3(x = trainPredictor, y = trainClasses, k = 5)
+  
+  knnFit
+  
+```
+
+O objeto knnFit está pronto para predizer novos valores, para tal usamos a função predict
+
+```{r}
+  testePredictions <- predict(knnFit, newdata = testPredictors, type= "class")
+  
+  head(testePredictions)
+  str(testePredictions)
+```
+
+O valor de type varia de acordo com a função de modelagem.
+
+
+#Determinação de parâmetros de tunning
+Para escolher os parâmetros de tunning usando reamostragem, diversos conjuntos são avaliados usando amostras distintas de dados. Pode-se criar um profile para avaliar o impacto dos parâmetros sobre o desempenho, focaremos aqui no uso do método: *train* do pacote caret que tem suporte a 144 modelos e diversas técnicas de reamostragem.
+
+O SVm treinado anteriormente usou um kernel RBF que possuí o parâmetro $\sigma$ o qual pode ser estimado analiticamente de acordo com algumas pesquisas científicas. O pacote caret faz essa estimativa automaticamente deixando a cargo do analista somente a função custo, a seguir vamos treinar um modelo usando dados de crédito de um banco Alemão.
+```{r}
+  library(caret)
+  data(GermanCredit)
+  
+  ## First, remove near-zero variance predictors then get rid of a few predictors 
+  ## that duplicate values. For example, there are two possible values for the 
+  ## housing variable: "Rent", "Own" and "ForFree". So that we don't have linear
+  ## dependencies, we get rid of one of the levels (e.g. "ForFree")
+  
+  GermanCredit <- GermanCredit[, -nearZeroVar(GermanCredit)]
+  GermanCredit$CheckingAccountStatus.lt.0 <- NULL
+  GermanCredit$SavingsAccountBonds.lt.100 <- NULL
+  GermanCredit$EmploymentDuration.lt.1 <- NULL
+  GermanCredit$EmploymentDuration.Unemployed <- NULL
+  GermanCredit$Personal.Male.Married.Widowed <- NULL
+  GermanCredit$Property.Unknown <- NULL
+  GermanCredit$Housing.ForFree <- NULL
+  
+  ## Split the data into training (80%) and test sets (20%)
+  set.seed(100)
+  inTrain <- createDataPartition(GermanCredit$Class, p = .8)[[1]]
+  GermanCreditTrain <- GermanCredit[ inTrain, ]
+  GermanCreditTest  <- GermanCredit[-inTrain, ]
+  
+  set.seed(1056)
+  svmFit <- train(Class~., 
+                  data=GermanCreditTrain, 
+                  
+                  #tipo de kernel usado
+                  method = "svmRadial",
+
+                  #centralizar e escalar os valores
+                  preProc = c("center", "scale"),
+                  
+                  #usar valores específicos de kernel
+                  tuneLength = 10, 
+                  
+                  #How to ressample the model during the training
+                  trControl = trainControl(method = "repeatedcv",
+                                           repeats = 5,
+                                           classProbs = TRUE)
+                  )
+  
+  svmFit
+  
+  
+```
+
+Podemos plotar o resultado do profile para facilitar a escolha de melhor modelo:
+```{r}
+  
+  plot(svmFit, scale= list(x = list(log = 2)))
+```
+
+Para predizer novos valores com essa classe usamos:
+```{r}
+  
+  predictedClasses <- predict(svmFit, GermanCreditTest)
+  str(predictedClasses)
+  
+  predictedProbs <- predict(svmFit, GermanCreditTest, type = "prob")
+  str(predictedProbs)
+  
+  head(predictedProbs)
+  
+  
+```
+
+
+#Between-model comparison
+Vamos comparar uma logistica com o SVM, primeiro vamos treinar a logistica
+```{r}
+
+  set.seed(1056)
+  logisticaFit <- train(Class~., 
+                        data=GermanCreditTrain, 
+                        
+                        #tipo de kernel usado
+                        method = "glm",
+                        
+                        #How to ressample the model during the training
+                        trControl = trainControl(method = "repeatedcv",
+                                                 repeats = 5)
+                        )
+  
+  logisticaFit
+```
+
+Paara comparar esses dois modelos, dado que ambos foram fitados sobre os mesmos dados reamostrados, podemos usar o método ressample.
+```{r}
+
+  ressamp <- resamples(list(SVM = svmFit, Logistic = logisticaFit))
+  summary(ressamp)
+
+```
+
+Observamos que as distribuições estão parecidas, a coluna NA é para valores com erros de cálculo numérico. A diferença entre os métodos pode ser visualizada com
+```{r}
+
+  modelDifferences <- diff(ressamp)
+  summary(modelDifferences)
+  
+```
+O p-valor para a comparação dos modelos é grande $0.592$ para acurácia e $0.269$ para Kappa, mostrando que o modelo falha em mostrar qualquer diferença de performance entre modelos.
+
+
+#Exercícios
 
 
 
