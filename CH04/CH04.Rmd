@@ -185,7 +185,7 @@ Quando são usadas várias metodologias para comparar modelos podemos chegar em 
   
   #message = FALSE, warning = FALSE
   library(AppliedPredictiveModeling)
-  library(caret)
+  library("caret")
 
   data(twoClassData)
   
@@ -395,10 +395,31 @@ Observamos que as distribuições estão parecidas, a coluna NA é para valores 
   summary(modelDifferences)
   
 ```
-O p-valor para a comparação dos modelos é grande $0.592$ para acurácia e $0.269$ para Kappa, mostrando que o modelo falha em mostrar qualquer diferença de performance entre modelos.
+O p-valor para a comparação dos modelos é grande $0.592$ para acurácia e $0.269$ para Kappa, mostrando que o modelo falha em mostrar qualquer diferença de performance entre modelos. Obs: coeficiente de concordância Kappa é uma
 
 
 #Exercícios
 
+##401
+Para escolher métodos de split de dados devemos considerar dois fatores:
+
+1. Número de instâncias em relação ao número de preditores
+2. Distribuição das instâncias em relação as classes
+
+Para esse dataset temos $12495$  o número de preditores é de $191$ como o número de instâncias é mais que $65$ vezes maior que o número de preditores podemos dividir o conjunto em: i) treino e ii) teste. Esse split nos permite avaliar o desempenho do modelo sem impactar na tunagem dos parâmetros, antes de tomar esse decisão vamos analisar a dsitribuição das classes em relação as instâncias
+![Distribuição target x instâncias](../CH01/Ch01Fig01.png)
+
+A figura acima mostra o desbalanceamento entre classes, Metal ($7\%$) e Classica ($28\%$) sendo os extremos do desbalanceamento. Mesmo com esse desbalanceamento temos muitos dados tal que técnicas como validação cruzada e reamostragem tem possiblidade alta de selecionar exemplos de cada classe.
+
+Em seguida devemos considerar o custo computacional de cada técnica uma validação cruzada para k pequeno ($5-10$) não será tão custoso. Entretanto repeated training/teste e bootstrap produzem resultados mais precisos na tunagem do modelo e validação.
 
 
+A função createDataPartition pode ser usada para criar os folds e manter a distribuição desbalanceada entre classes. 
+
+```{r}
+  
+  set.seed(31)
+  tenFoldCv <- createFolds(trainClasses, k = 10, list = FALSE, returnTrain = TRUE)
+  
+  tenFoldCv
+```
